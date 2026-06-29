@@ -1,0 +1,1370 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OSINT Agent Console Demo</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090d12;
+      --panel: #111820;
+      --panel-2: #0d131a;
+      --panel-3: #151e28;
+      --line: #22303d;
+      --line-strong: #314251;
+      --text: #d7e2ea;
+      --muted: #8294a3;
+      --soft: #a9b8c4;
+      --accent: #4fc3a1;
+      --accent-2: #6bb9ff;
+      --warn: #f3b34c;
+      --danger: #f26d6d;
+      --ok: #68d391;
+      --purple: #b699ff;
+      --shadow: rgba(0, 0, 0, 0.35);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+
+    button, input { font: inherit; }
+
+    button {
+      border: 1px solid var(--line-strong);
+      background: var(--panel-3);
+      color: var(--text);
+      cursor: pointer;
+      border-radius: 6px;
+      min-height: 36px;
+      padding: 0 12px;
+      transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+    }
+
+    button:hover:not(:disabled) {
+      border-color: var(--accent-2);
+      background: #192636;
+    }
+
+    button:disabled {
+      color: #61707d;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(210px, 0.9fr) auto minmax(380px, 1.2fr) auto;
+      gap: 14px;
+      align-items: center;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+      background: #0b1118;
+      box-shadow: 0 10px 30px var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .brand-title {
+      font-weight: 700;
+      font-size: 15px;
+      color: #edf6fb;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .brand-subtitle, .fineprint {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    .tabs {
+      display: inline-flex;
+      gap: 6px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #070b10;
+    }
+
+    .tab-button {
+      min-height: 32px;
+      border-color: transparent;
+      background: transparent;
+      color: var(--soft);
+    }
+
+    .tab-button.active {
+      background: #172231;
+      border-color: var(--line-strong);
+      color: #eff7fb;
+    }
+
+    .ioc-bar {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) auto auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .ioc-input, .small-input {
+      width: 100%;
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: #070b10;
+      color: var(--text);
+      font-family: var(--mono);
+      outline: none;
+    }
+
+    .ioc-input:focus, .small-input:focus { border-color: var(--accent-2); }
+
+    .primary {
+      background: #143529;
+      border-color: #2c725c;
+      color: #d9fff2;
+    }
+
+    .badge-row {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 24px;
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--soft);
+      background: rgba(255, 255, 255, 0.03);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .badge:before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 99px;
+      background: var(--accent);
+    }
+
+    .badge.boundary:before { background: var(--warn); }
+
+    .view {
+      display: none;
+      padding: 14px;
+      min-height: 0;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    .investigate-layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 0.8fr) minmax(680px, 1.8fr);
+      gap: 14px;
+      min-height: 0;
+    }
+
+    .lab-layout {
+      display: grid;
+      grid-template-columns: 260px minmax(520px, 1fr) minmax(320px, 0.75fr);
+      gap: 14px;
+      min-height: calc(100vh - 100px);
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-width: 0;
+      overflow: hidden;
+      box-shadow: 0 16px 32px var(--shadow);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel-2);
+    }
+
+    .panel-title {
+      font-weight: 700;
+      font-size: 13px;
+      text-transform: uppercase;
+      color: #e8f0f5;
+    }
+
+    .panel-body {
+      padding: 14px;
+    }
+
+    .stack {
+      display: grid;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    .metric {
+      padding: 11px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-width: 0;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .metric-value {
+      font-family: var(--mono);
+      font-size: 18px;
+      color: #f2f7fb;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .source-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .source-card, .agent-button {
+      display: grid;
+      gap: 9px;
+      min-height: 116px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-2);
+      text-align: left;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .source-card.selected, .agent-button.selected {
+      border-color: var(--accent-2);
+      box-shadow: inset 0 0 0 1px rgba(107, 185, 255, 0.28);
+    }
+
+    .source-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: flex-start;
+    }
+
+    .source-name {
+      font-weight: 700;
+      color: #eff7fb;
+    }
+
+    .source-summary {
+      color: var(--soft);
+      line-height: 1.4;
+      min-height: 38px;
+    }
+
+    .source-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      font-size: 11px;
+      color: var(--soft);
+      background: rgba(255, 255, 255, 0.03);
+      white-space: nowrap;
+    }
+
+    .pill.querying { color: #c5e4ff; border-color: #315a7e; background: rgba(88, 166, 255, 0.08); }
+    .pill.done { color: #bdffd8; border-color: #2d6e4d; background: rgba(104, 211, 145, 0.08); }
+    .pill.flagged { color: #ffd4d4; border-color: #7c3438; background: rgba(242, 109, 109, 0.09); }
+    .pill.high { color: #ffd4d4; border-color: #7c3438; }
+    .pill.medium { color: #ffe1a6; border-color: #805d25; }
+    .pill.low { color: #bdffd8; border-color: #2d6e4d; }
+
+    .log-list {
+      display: grid;
+      gap: 10px;
+      max-height: calc(100vh - 174px);
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .log-item {
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-2);
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .log-time { color: var(--accent-2); }
+    .log-text { color: #c7d5df; }
+
+    .placeholder {
+      border: 1px dashed var(--line-strong);
+      border-radius: 8px;
+      padding: 14px;
+      color: var(--muted);
+      line-height: 1.5;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .risk-line {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .risk-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      border: 1px solid #7c3438;
+      color: #ffd4d4;
+      background: rgba(242, 109, 109, 0.11);
+      font-family: var(--mono);
+      font-weight: 700;
+    }
+
+    .confidence-bar {
+      flex: 1;
+      min-width: 200px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 8px;
+      align-items: center;
+      color: var(--soft);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .confidence-track {
+      height: 8px;
+      border-radius: 99px;
+      background: #071018;
+      border: 1px solid var(--line);
+      overflow: hidden;
+    }
+
+    .confidence-fill {
+      height: 100%;
+      width: 78%;
+      background: linear-gradient(90deg, var(--warn), var(--danger));
+    }
+
+    .report-summary {
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #653034;
+      background: rgba(242, 109, 109, 0.08);
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .report-section {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      color: #eef6fb;
+      font-weight: 700;
+    }
+
+    .evidence-row, .action-row {
+      display: grid;
+      grid-template-columns: 112px 1fr;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-2);
+      line-height: 1.45;
+    }
+
+    .evidence-source-badge {
+      align-self: start;
+      display: inline-flex;
+      justify-content: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid #315a7e;
+      color: #c5e4ff;
+      background: rgba(88, 166, 255, 0.08);
+      font-size: 11px;
+      font-family: var(--mono);
+    }
+
+    .action-severity {
+      display: inline-flex;
+      justify-content: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-family: var(--mono);
+      text-transform: uppercase;
+    }
+
+    .action-severity.critical { color: #ffd4d4; border: 1px solid #7c3438; background: rgba(242, 109, 109, 0.1); }
+    .action-severity.warning { color: #ffe1a6; border: 1px solid #805d25; background: rgba(243, 179, 76, 0.09); }
+    .action-severity.info { color: #c5e4ff; border: 1px solid #315a7e; background: rgba(88, 166, 255, 0.08); }
+
+    .raw-table {
+      display: grid;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .raw-row {
+      display: grid;
+      grid-template-columns: minmax(120px, 0.75fr) minmax(0, 1fr);
+      gap: 10px;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--line);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .raw-row:last-child { border-bottom: 0; }
+    .raw-key { color: #7990a6; }
+    .raw-value { color: #e7f0f7; text-align: right; overflow-wrap: anywhere; }
+    .raw-value.high-risk { color: var(--danger); }
+    .raw-value.medium-risk { color: var(--warn); }
+    .raw-value.low-risk { color: var(--accent); }
+
+    .detail-section {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-2);
+    }
+
+    .detail-section.emphasis {
+      border-color: #3d315f;
+      background: rgba(120, 91, 190, 0.08);
+    }
+
+    .detail-label {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    .reasoning-chain {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .reasoning-item {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .reasoning-index {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      border: 1px solid #6d58a8;
+      color: #c2a8ff;
+      font-family: var(--mono);
+      background: rgba(119, 91, 190, 0.12);
+    }
+
+    .reasoning-title {
+      color: #c2a8ff;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .reasoning-text { color: #b9c8d6; }
+
+    .agent-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .agent-button {
+      min-height: auto;
+    }
+
+    .agent-chat-log {
+      display: grid;
+      gap: 8px;
+      max-height: calc(100vh - 232px);
+      overflow: auto;
+    }
+
+    .message {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      line-height: 1.45;
+      background: var(--panel-2);
+    }
+
+    .message.user {
+      border-color: #315a7e;
+      background: rgba(88, 166, 255, 0.07);
+    }
+
+    .message.assistant {
+      border-color: #2d6e4d;
+      background: rgba(104, 211, 145, 0.06);
+    }
+
+    .chat-input-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .list {
+      display: grid;
+      gap: 8px;
+      padding: 0;
+      margin: 0;
+      list-style: none;
+    }
+
+    .list li {
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.025);
+      line-height: 1.45;
+    }
+
+    @media (max-width: 1180px) {
+      .topbar, .investigate-layout, .lab-layout {
+        grid-template-columns: 1fr;
+      }
+      .source-grid, .metric-row {
+        grid-template-columns: 1fr 1fr;
+      }
+      .badge-row { justify-content: flex-start; }
+    }
+
+    @media (max-width: 720px) {
+      .ioc-bar, .source-grid, .metric-row, .chat-input-row, .evidence-row, .action-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <div class="brand-title">OSINT Agent Console</div>
+        <div class="brand-subtitle">AI-assisted threat investigation presentation shell</div>
+      </div>
+      <nav class="tabs" aria-label="workspace views">
+        <button class="tab-button active" id="tabInvestigate" type="button" data-view="investigate">Investigate</button>
+        <button class="tab-button" id="tabLab" type="button" data-view="lab">Agent Lab</button>
+      </nav>
+      <form class="ioc-bar" id="investigationForm">
+        <input class="ioc-input" id="iocInput" value="185.220.101.47" aria-label="IOC input">
+        <button class="primary" id="runButton" type="submit">Run Investigation</button>
+        <button id="resetButton" type="button">Reset</button>
+      </form>
+      <div class="badge-row" aria-label="demo boundaries">
+        <span class="badge boundary">Mock data</span>
+        <span class="badge boundary">No external API calls</span>
+        <span class="badge boundary">Simulated explanation layer</span>
+      </div>
+    </header>
+
+    <section class="view active" id="view-investigate">
+      <div class="investigate-layout">
+        <aside class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Execution Log</div>
+            <span class="pill" id="runStatePill">ready</span>
+          </div>
+          <div class="panel-body">
+            <div class="log-list" id="logList">
+              <div class="placeholder">Waiting for an IOC. The simulated orchestrator will show each investigation step here after Run Investigation.</div>
+            </div>
+          </div>
+        </aside>
+
+        <section class="stack">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">Investigation Workspace</div>
+              <span class="pill" id="boundaryPill">demo-only</span>
+            </div>
+            <div class="panel-body stack">
+              <div class="metric-row">
+                <div class="metric">
+                  <div class="metric-label">IOC</div>
+                  <div class="metric-value" id="metricIoc">185.220.101.47</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Risk</div>
+                  <div class="metric-value" id="metricRisk">Pending</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Confidence</div>
+                  <div class="metric-value" id="metricConfidence">Pending</div>
+                </div>
+              </div>
+              <div>
+                <div class="section-title">
+                  <span>OSINT Sources</span>
+                  <span class="fineprint">Simulated source workers, not autonomous agents</span>
+                </div>
+                <div class="source-grid" id="sourceGrid"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">Investigation Report</div>
+              <span class="pill" id="reportStatePill">pending</span>
+            </div>
+            <div class="panel-body" id="reportBody">
+              <div class="placeholder">Report will be generated from mock evidence after the simulated investigation completes.</div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="view" id="view-lab">
+      <div class="lab-layout">
+        <aside class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Source Workers</div>
+            <span class="pill" id="labStatePill">locked</span>
+          </div>
+          <div class="panel-body">
+            <div class="placeholder" id="labIntro">Run an investigation first, then select any source worker to inspect raw data, explainability, and suggested actions.</div>
+            <div class="agent-list" id="agentList"></div>
+          </div>
+        </aside>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Agent Lab / Source Inspector</div>
+            <span class="pill" id="selectedAgentPill">no source</span>
+          </div>
+          <div class="panel-body stack" id="agentDetail">
+            <div class="placeholder">Select a source worker after running the investigation.</div>
+          </div>
+        </section>
+
+        <aside class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Ask This Source</div>
+            <span class="pill">simulated</span>
+          </div>
+          <div class="panel-body">
+            <div class="agent-chat-log" id="agentChatLog">
+              <div class="placeholder">Per-source chat is disabled until a source worker is selected. Replies are simulated and evidence-bound.</div>
+            </div>
+            <form class="chat-input-row" id="agentChatForm">
+              <input class="small-input" id="agentChatInput" placeholder="Ask about this source..." disabled>
+              <button id="agentChatSend" type="submit" disabled>Ask</button>
+            </form>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const demoInvestigation = {
+      ioc: "185.220.101.47",
+      iocType: "ip",
+      sources: [
+        {
+          id: "whois",
+          name: "WHOIS",
+          status: "idle",
+          severity: "medium",
+          headline: "Registry and ASN lookup pending.",
+          finalHeadline: "Commercial hosting context adds supporting risk.",
+          rawResultRows: [
+            ["ASN", "AS60781", ""],
+            ["Organisation", "LeaseWeb Netherlands BV", "medium-risk"],
+            ["Country", "Netherlands", ""],
+            ["Registration", "2019-03-14", ""],
+            ["Hosting type", "Commercial VPS", "medium-risk"],
+            ["Source status", "mock fixture only", ""]
+          ],
+          normalizedSignals: ["commercial VPS hosting", "provider context is often abused", "registration age is not exculpatory"],
+          reasoningChain: [
+            { title: "Hosting provider context", text: "Commercial VPS providers are frequently abused for temporary infrastructure, so this raises baseline suspicion." },
+            { title: "Registration age is weak evidence", text: "The range registration date does not prove the specific VPS has been stable or benign." },
+            { title: "Corroboration role", text: "WHOIS is a supporting signal that becomes more meaningful when combined with reputation and port evidence." }
+          ],
+          suggestedActions: [
+            "Use WHOIS as context rather than final proof.",
+            "Check whether nearby ASN ranges appear in internal IOC history.",
+            "Escalate only if reputation or telemetry also supports risk."
+          ],
+          chatMap: {
+            "asn": "AS60781 identifies the hosting environment. It does not make the IP malicious by itself, but it helps frame infrastructure risk.",
+            "leaseweb": "LeaseWeb is a legitimate hosting provider. In this demo it is treated as contextual risk, not proof of compromise.",
+            "hosting": "Hosting context is useful when combined with stronger source evidence such as reputation hits or suspicious open services."
+          }
+        },
+        {
+          id: "dns",
+          name: "DNS",
+          status: "idle",
+          severity: "low",
+          headline: "Reverse lookup and record context pending.",
+          finalHeadline: "Sparse DNS profile provides weak supporting context.",
+          rawResultRows: [
+            ["PTR record", "none", "medium-risk"],
+            ["Hostname", "unresolved", "medium-risk"],
+            ["Related domains", "none in mock fixture", "low-risk"],
+            ["TTL", "3600", ""],
+            ["Source status", "mock fixture only", ""]
+          ],
+          normalizedSignals: ["no PTR record", "no hostname", "no related domains in fixture"],
+          reasoningChain: [
+            { title: "Missing PTR can be suspicious", text: "Many legitimate services configure reverse DNS, so absence of PTR can support an infrastructure-risk story." },
+            { title: "No domain pivot reduces weight", text: "The mock fixture does not reveal related domains, so DNS does not add strong pivot evidence." },
+            { title: "Supporting evidence only", text: "DNS context should not drive blocking without stronger signals from other sources." }
+          ],
+          suggestedActions: [
+            "Treat DNS as low-weight supporting context.",
+            "Do not block solely on missing PTR.",
+            "If a real backend is connected later, query passive DNS for historical domain pivots."
+          ],
+          chatMap: {
+            "ptr": "PTR records map an IP back to a hostname. Missing PTR is context, not a standalone malicious verdict.",
+            "domain": "This mock fixture has no related domains. A real backend could add passive DNS pivots later.",
+            "weight": "DNS has low weight here because it lacks direct malicious observations."
+          }
+        },
+        {
+          id: "virustotal",
+          name: "VirusTotal",
+          status: "idle",
+          severity: "high",
+          headline: "Multi-engine reputation check pending.",
+          finalHeadline: "High detection ratio strongly raises risk.",
+          rawResultRows: [
+            ["Detection ratio", "62 / 93 engines", "high-risk"],
+            ["Malicious verdicts", "62", "high-risk"],
+            ["Suspicious", "8", "medium-risk"],
+            ["Harmless", "16", "low-risk"],
+            ["Community score", "-85", "high-risk"],
+            ["Tags", "c2, dropper, trojan", "high-risk"],
+            ["Source status", "mock fixture only", ""]
+          ],
+          normalizedSignals: ["62/93 detection ratio", "C2 and dropper tags", "negative community score"],
+          reasoningChain: [
+            { title: "62/93 detection ratio", text: "A majority detection ratio is a strong positive indicator in this mock scenario." },
+            { title: "C2 and dropper tags", text: "These categories suggest command-and-control or payload delivery behavior, raising response urgency." },
+            { title: "Community score adds independent signal", text: "Community score is a different signal type from automated engines, so it strengthens corroboration." }
+          ],
+          suggestedActions: [
+            "Treat as high-risk in this mock scenario.",
+            "Search internal logs before declaring impact.",
+            "Use this as one of several evidence points, not as real VirusTotal proof."
+          ],
+          chatMap: {
+            "false": "False positive probability is lower when many engines agree, but this is still mock data and needs real API/local telemetry before production action.",
+            "c2": "The C2 tag means the fixture is modeling command-and-control reputation evidence.",
+            "engines": "The 16 harmless results reduce certainty slightly, but the 62 high-risk verdicts dominate this source's mock signal."
+          }
+        },
+        {
+          id: "shodan",
+          name: "Shodan",
+          status: "idle",
+          severity: "medium",
+          headline: "Open service and banner check pending.",
+          finalHeadline: "Tor-like service pattern adds infrastructure concern.",
+          rawResultRows: [
+            ["Open ports", "443, 9001, 9030", "medium-risk"],
+            ["Port 443", "self-signed TLS", "medium-risk"],
+            ["Port 9001", "Tor OR-style port", "medium-risk"],
+            ["Port 9030", "Tor Dir-style port", "medium-risk"],
+            ["Banner", "none in mock fixture", ""],
+            ["Source status", "mock fixture only", ""]
+          ],
+          normalizedSignals: ["Tor-like ports", "self-signed TLS", "limited service banner"],
+          reasoningChain: [
+            { title: "Tor-like ports are relevant", text: "Ports 9001 and 9030 match common Tor relay patterns and support suspicious infrastructure context." },
+            { title: "Self-signed TLS is a weak-to-medium signal", text: "It can be benign, but when combined with reputation hits it becomes more meaningful." },
+            { title: "Service exposure helps triage", text: "Open service data helps analysts decide what local network telemetry to inspect." }
+          ],
+          suggestedActions: [
+            "Correlate any local connections with ports 443, 9001, or 9030.",
+            "Do not treat port pattern alone as final proof.",
+            "Use as medium-weight infrastructure evidence."
+          ],
+          chatMap: {
+            "tor": "The mock Shodan result models Tor-like ports. That supports suspicious routing context but is not final proof.",
+            "ports": "Ports 443, 9001, and 9030 guide what to inspect in firewall and proxy logs.",
+            "tls": "Self-signed TLS is common in many contexts; it becomes more relevant when reputation evidence is also high."
+          }
+        },
+        {
+          id: "otx",
+          name: "AlienVault OTX",
+          status: "idle",
+          severity: "medium",
+          headline: "Pulse correlation pending.",
+          finalHeadline: "Multiple pulses add corroborating reputation context.",
+          rawResultRows: [
+            ["Pulse count", "6 pulses", "medium-risk"],
+            ["Tags", "scanner, suspicious-infrastructure", "medium-risk"],
+            ["Related IOCs", "4 in mock cluster", "medium-risk"],
+            ["First seen", "2026-05-12", ""],
+            ["Source status", "mock fixture only", ""]
+          ],
+          normalizedSignals: ["6 pulse references", "suspicious infrastructure tags", "related IOC cluster"],
+          reasoningChain: [
+            { title: "Multiple pulses add corroboration", text: "Several OTX references make the IOC more credible than a single-source alert." },
+            { title: "Tags are contextual", text: "Scanner and suspicious-infrastructure tags raise risk but do not prove targeting against this environment." },
+            { title: "Related IOCs support follow-up", text: "A related cluster gives analysts a path for additional investigation." }
+          ],
+          suggestedActions: [
+            "Use OTX as corroborating evidence.",
+            "Review related IOCs before recommending broad blocking.",
+            "Compare OTX context against internal telemetry."
+          ],
+          chatMap: {
+            "pulse": "An OTX pulse is a curated threat-intel grouping. Here it is mock data used to show correlation flow.",
+            "related": "Related IOCs are useful for follow-up, but in this static demo they are not fetched from a real API.",
+            "confidence": "OTX increases confidence by corroborating reputation signals from other sources."
+          }
+        },
+        {
+          id: "feeds",
+          name: "Threat Feeds",
+          status: "idle",
+          severity: "medium",
+          headline: "Blocklist cross-reference pending.",
+          finalHeadline: "Listed in two mock feeds; useful corroboration.",
+          rawResultRows: [
+            ["Emerging Threats", "listed", "medium-risk"],
+            ["AbuseCH Feodo", "listed - C2", "high-risk"],
+            ["Spamhaus", "not listed", "low-risk"],
+            ["Days listed", "11", "medium-risk"],
+            ["Source status", "mock fixture only", ""]
+          ],
+          normalizedSignals: ["listed in two mock feeds", "C2 category in AbuseCH-style fixture", "not listed by Spamhaus"],
+          reasoningChain: [
+            { title: "Two listings add corroboration", text: "Multiple feed hits support the overall risk assessment." },
+            { title: "Spamhaus absence narrows interpretation", text: "Not being listed for spam suggests the modeled risk is not mass-spam behavior." },
+            { title: "Feed data is not enough alone", text: "Feed listings should be validated against local environment exposure." }
+          ],
+          suggestedActions: [
+            "Check whether internal controls already consume these feed categories.",
+            "Audit local logs for historical communication with the IOC.",
+            "Use feed hits as supporting evidence for containment review."
+          ],
+          chatMap: {
+            "feeds": "Threat feeds provide corroboration from curated lists. In this demo they are static mock entries.",
+            "spamhaus": "Spamhaus absence is informative because it suggests the IOC is not modeled as spam infrastructure.",
+            "blocklist": "Blocklist hits support blocking review, but should be combined with local telemetry."
+          }
+        }
+      ],
+      executionSteps: [
+        { delay: 350, actor: "Orchestrator", text: "Received IOC 185.220.101.47 and classified it as IP address." },
+        { delay: 800, actor: "Orchestrator", text: "Created mock plan: WHOIS, DNS, VirusTotal-style reputation, Shodan-style services, OTX, Threat Feeds." },
+        { delay: 1200, actor: "Executor", text: "Querying WHOIS mock fixture." },
+        { delay: 1700, actor: "Executor", text: "Querying DNS mock fixture." },
+        { delay: 2200, actor: "Executor", text: "Querying VirusTotal-style mock fixture." },
+        { delay: 2700, actor: "Executor", text: "Querying Shodan-style mock fixture." },
+        { delay: 3200, actor: "Executor", text: "Querying AlienVault OTX mock fixture." },
+        { delay: 3700, actor: "Executor", text: "Querying Threat Feeds mock fixture." },
+        { delay: 4400, actor: "Reasoning", text: "Normalizing source outputs into evidence chain." },
+        { delay: 5200, actor: "Reasoning", text: "Generated risk assessment, confidence rationale, and recommended actions from mock evidence." }
+      ],
+      report: {
+        riskLevel: "High",
+        confidence: 82,
+        title: "185.220.101.47 - High-risk IOC in mock OSINT scenario",
+        summary: "The IOC is high risk in this mock investigation because reputation, service-exposure, OTX, and feed-style evidence converge. The result is evidence-backed for demo purposes, but it is not a production verdict because no real external APIs or local telemetry are used.",
+        evidenceChain: [
+          { source: "VirusTotal", text: "Mock detection ratio of 62/93 with C2, dropper, and trojan tags.", tag: "high signal" },
+          { source: "Shodan", text: "Mock open-service profile includes Tor-like ports and self-signed TLS.", tag: "medium signal" },
+          { source: "OTX", text: "Mock pulse correlation shows 6 references and related IOC context.", tag: "medium signal" },
+          { source: "Threat Feeds", text: "Mock feed cross-reference lists the IOC in two threat feeds.", tag: "medium signal" },
+          { source: "WHOIS", text: "Commercial VPS hosting context supports infrastructure-risk interpretation.", tag: "supporting" },
+          { source: "DNS", text: "Sparse DNS profile adds weak supporting context, not final proof.", tag: "supporting" }
+        ],
+        recommendedActions: [
+          { severity: "critical", text: "If there is no known business dependency, block or rate-limit the IOC while analyst review proceeds." },
+          { severity: "critical", text: "Search firewall, proxy, VPN, and authentication logs for communication with the IOC." },
+          { severity: "warning", text: "Review related mock OTX indicators before expanding containment scope." },
+          { severity: "info", text: "Replace mock fixtures with FastAPI / OSINT backend results before making production claims." }
+        ],
+        limitations: [
+          "This HTML demo does not call external OSINT APIs.",
+          "Per-source chat is simulated and constrained to mock evidence.",
+          "The output demonstrates workflow and interface design, not detection accuracy."
+        ]
+      }
+    };
+
+    const state = {
+      running: false,
+      completed: false,
+      selectedSourceId: null,
+      timers: [],
+      sourceStatus: {},
+      logIndex: 0
+    };
+
+    const els = {
+      form: document.getElementById("investigationForm"),
+      iocInput: document.getElementById("iocInput"),
+      runButton: document.getElementById("runButton"),
+      resetButton: document.getElementById("resetButton"),
+      runStatePill: document.getElementById("runStatePill"),
+      boundaryPill: document.getElementById("boundaryPill"),
+      metricIoc: document.getElementById("metricIoc"),
+      metricRisk: document.getElementById("metricRisk"),
+      metricConfidence: document.getElementById("metricConfidence"),
+      logList: document.getElementById("logList"),
+      sourceGrid: document.getElementById("sourceGrid"),
+      reportStatePill: document.getElementById("reportStatePill"),
+      reportBody: document.getElementById("reportBody"),
+      tabInvestigate: document.getElementById("tabInvestigate"),
+      tabLab: document.getElementById("tabLab"),
+      viewInvestigate: document.getElementById("view-investigate"),
+      viewLab: document.getElementById("view-lab"),
+      labStatePill: document.getElementById("labStatePill"),
+      selectedAgentPill: document.getElementById("selectedAgentPill"),
+      labIntro: document.getElementById("labIntro"),
+      agentList: document.getElementById("agentList"),
+      agentDetail: document.getElementById("agentDetail"),
+      agentChatLog: document.getElementById("agentChatLog"),
+      agentChatForm: document.getElementById("agentChatForm"),
+      agentChatInput: document.getElementById("agentChatInput"),
+      agentChatSend: document.getElementById("agentChatSend")
+    };
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function setPill(el, text, className) {
+      el.className = `pill ${className || ""}`;
+      el.textContent = text;
+    }
+
+    function clearTimers() {
+      state.timers.forEach((timer) => window.clearTimeout(timer));
+      state.timers = [];
+    }
+
+    function schedule(callback, delay) {
+      const timer = window.setTimeout(callback, delay);
+      state.timers.push(timer);
+    }
+
+    function resetSourceStatus() {
+      state.sourceStatus = {};
+      demoInvestigation.sources.forEach((source) => {
+        state.sourceStatus[source.id] = "idle";
+      });
+    }
+
+    function showView(view) {
+      els.tabInvestigate.classList.toggle("active", view === "investigate");
+      els.tabLab.classList.toggle("active", view === "lab");
+      els.viewInvestigate.classList.toggle("active", view === "investigate");
+      els.viewLab.classList.toggle("active", view === "lab");
+    }
+
+    function renderSources() {
+      els.sourceGrid.innerHTML = demoInvestigation.sources.map((source) => {
+        const status = state.sourceStatus[source.id] || "idle";
+        const selected = state.selectedSourceId === source.id ? " selected" : "";
+        const headline = status === "idle" || status === "querying" ? source.headline : source.finalHeadline;
+        return `
+          <button class="source-card${selected}" type="button" data-source-id="${escapeHtml(source.id)}">
+            <div class="source-head">
+              <div class="source-name">${escapeHtml(source.name)}</div>
+              <span class="pill ${escapeHtml(status)}">${escapeHtml(status)}</span>
+            </div>
+            <div class="source-summary">${escapeHtml(headline)}</div>
+            <div class="source-meta">
+              <span class="pill ${escapeHtml(source.severity)}">${escapeHtml(source.severity)} signal</span>
+              <span class="pill">mock-only</span>
+            </div>
+          </button>
+        `;
+      }).join("");
+    }
+
+    function renderAgentList() {
+      els.agentList.innerHTML = demoInvestigation.sources.map((source) => {
+        const status = state.sourceStatus[source.id] || "idle";
+        const selected = state.selectedSourceId === source.id ? " selected" : "";
+        return `
+          <button class="agent-button${selected}" type="button" data-agent-id="${escapeHtml(source.id)}">
+            <div class="source-head">
+              <div class="source-name">${escapeHtml(source.name)}</div>
+              <span class="pill ${escapeHtml(status)}">${escapeHtml(status)}</span>
+            </div>
+            <div class="fineprint">${escapeHtml(source.finalHeadline)}</div>
+          </button>
+        `;
+      }).join("");
+    }
+
+    function renderReportPlaceholder() {
+      setPill(els.reportStatePill, "pending");
+      els.metricRisk.textContent = "Pending";
+      els.metricConfidence.textContent = "Pending";
+      els.reportBody.innerHTML = '<div class="placeholder">Report will be generated from mock evidence after the simulated investigation completes.</div>';
+    }
+
+    function renderReport() {
+      const report = demoInvestigation.report;
+      setPill(els.reportStatePill, "ready", "done");
+      els.metricRisk.textContent = report.riskLevel;
+      els.metricConfidence.textContent = `${report.confidence}%`;
+      els.reportBody.innerHTML = `
+        <div class="risk-line">
+          <span class="risk-pill">${escapeHtml(report.riskLevel)} Risk</span>
+          <div class="confidence-bar">
+            <span>confidence</span>
+            <span class="confidence-track"><span class="confidence-fill" style="width:${report.confidence}%"></span></span>
+            <span>${report.confidence}%</span>
+          </div>
+        </div>
+        <div class="report-summary"><strong>${escapeHtml(report.title)}</strong><br>${escapeHtml(report.summary)}</div>
+        <div class="report-section">
+          <div class="section-title"><span>Evidence Chain</span><span class="fineprint">source-weighted mock evidence</span></div>
+          ${report.evidenceChain.map((item) => `
+            <div class="evidence-row">
+              <span class="evidence-source-badge">${escapeHtml(item.source)}</span>
+              <span>${escapeHtml(item.text)} <span class="pill ${item.tag.includes("high") ? "high" : item.tag.includes("medium") ? "medium" : "low"}">${escapeHtml(item.tag)}</span></span>
+            </div>
+          `).join("")}
+        </div>
+        <div class="report-section">
+          <div class="section-title"><span>Recommended Actions</span><span class="fineprint">decision support only</span></div>
+          ${report.recommendedActions.map((item) => `
+            <div class="action-row">
+              <span class="action-severity ${escapeHtml(item.severity)}">${escapeHtml(item.severity)}</span>
+              <span>${escapeHtml(item.text)}</span>
+            </div>
+          `).join("")}
+        </div>
+        <div class="report-section">
+          <div class="section-title"><span>Limitations</span><span class="fineprint">demo boundary</span></div>
+          <ul class="list">${report.limitations.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+        </div>
+      `;
+    }
+
+    function renderLabLocked() {
+      setPill(els.labStatePill, "locked");
+      setPill(els.selectedAgentPill, "no source");
+      els.labIntro.textContent = "Run an investigation first, then select any source worker to inspect raw data, explainability, and suggested actions.";
+      els.agentDetail.innerHTML = '<div class="placeholder">Select a source worker after running the investigation.</div>';
+      els.agentChatLog.innerHTML = '<div class="placeholder">Per-source chat is disabled until a source worker is selected. Replies are simulated and evidence-bound.</div>';
+      els.agentChatInput.disabled = true;
+      els.agentChatSend.disabled = true;
+    }
+
+    function addAgentMessage(role, text) {
+      if (els.agentChatLog.querySelector(".placeholder")) {
+        els.agentChatLog.innerHTML = "";
+      }
+      const message = document.createElement("div");
+      message.className = `message ${role}`;
+      message.innerHTML = escapeHtml(text);
+      els.agentChatLog.appendChild(message);
+      els.agentChatLog.scrollTop = els.agentChatLog.scrollHeight;
+    }
+
+    function renderAgentDetail(sourceId) {
+      const source = demoInvestigation.sources.find((item) => item.id === sourceId);
+      if (!source) {
+        renderLabLocked();
+        return;
+      }
+      state.selectedSourceId = source.id;
+      setPill(els.labStatePill, "ready", "done");
+      setPill(els.selectedAgentPill, source.name, source.severity);
+      els.labIntro.textContent = `IOC: ${demoInvestigation.ioc} · source details are mock-only`;
+      const rawRows = source.rawResultRows.map(([key, value, riskClass]) => `
+        <div class="raw-row">
+          <div class="raw-key">${escapeHtml(key)}</div>
+          <div class="raw-value ${escapeHtml(riskClass || "")}">${escapeHtml(value)}</div>
+        </div>
+      `).join("");
+      const reasoningItems = source.reasoningChain.map((item, index) => `
+        <li class="reasoning-item">
+          <span class="reasoning-index">${index + 1}</span>
+          <div>
+            <div class="reasoning-title">${escapeHtml(item.title)}</div>
+            <div class="reasoning-text">${escapeHtml(item.text)}</div>
+          </div>
+        </li>
+      `).join("");
+      els.agentDetail.innerHTML = `
+        <div class="detail-section">
+          <div class="detail-label">Source Worker</div>
+          <div><strong>${escapeHtml(source.name)}</strong> · ${escapeHtml(state.sourceStatus[source.id])} · ${escapeHtml(source.severity)} signal</div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">查询结果 —— 来自源的原始数据</div>
+          <div class="raw-table">${rawRows}</div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">Normalized Signals</div>
+          <ul class="list">${source.normalizedSignals.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+        </div>
+        <div class="detail-section emphasis">
+          <div class="detail-label">推理链 —— 可解释性</div>
+          <ol class="reasoning-chain">${reasoningItems}</ol>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">建议行动</div>
+          <ul class="list">${source.suggestedActions.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+        </div>
+        <div class="placeholder">Mock source result for demo. This page did not call ${escapeHtml(source.name)} or any external OSINT API.</div>
+      `;
+      els.agentChatInput.disabled = false;
+      els.agentChatSend.disabled = false;
+      els.agentChatLog.innerHTML = "";
+      addAgentMessage("assistant", `[Simulated source reply] I am the ${source.name} source worker. Ask about my raw fields, reasoning, or suggested actions.`);
+      renderSources();
+      renderAgentList();
+    }
+
+    function answerAgentQuestion(question) {
+      const source = demoInvestigation.sources.find((item) => item.id === state.selectedSourceId);
+      if (!source) return "Run an investigation and select a source worker first.";
+      const normalized = question.toLowerCase();
+      const match = Object.entries(source.chatMap).find(([key]) => normalized.includes(key));
+      if (match) return match[1];
+      return `Based on the ${source.name} mock evidence: ${source.reasoningChain[0].text} This is a simulated, source-bound answer and not a real LLM/API response.`;
+    }
+
+    function addLog(actor, text) {
+      if (state.logIndex === 0) els.logList.innerHTML = "";
+      state.logIndex += 1;
+      const item = document.createElement("div");
+      item.className = "log-item";
+      item.innerHTML = `
+        <div class="log-time">T+${String(state.logIndex).padStart(2, "0")}</div>
+        <div class="log-text"><strong>${escapeHtml(actor)}</strong> · ${escapeHtml(text)}</div>
+      `;
+      els.logList.appendChild(item);
+      els.logList.scrollTop = els.logList.scrollHeight;
+    }
+
+    function completeInvestigation() {
+      state.running = false;
+      state.completed = true;
+      setPill(els.runStatePill, "complete", "done");
+      els.runButton.disabled = false;
+      els.iocInput.disabled = false;
+      demoInvestigation.sources.forEach((source) => {
+        state.sourceStatus[source.id] = source.severity === "low" ? "done" : "flagged";
+      });
+      state.selectedSourceId = state.selectedSourceId || "virustotal";
+      renderSources();
+      renderAgentList();
+      renderReport();
+      renderAgentDetail(state.selectedSourceId);
+    }
+
+    function runInvestigation() {
+      if (state.running) return;
+      const ioc = els.iocInput.value.trim();
+      if (!ioc) {
+        addLog("Validator", "IOC input is empty. Provide an IP or domain before running.");
+        return;
+      }
+      clearTimers();
+      state.running = true;
+      state.completed = false;
+      state.selectedSourceId = null;
+      state.logIndex = 0;
+      resetSourceStatus();
+      els.metricIoc.textContent = ioc;
+      els.iocInput.disabled = true;
+      els.runButton.disabled = true;
+      setPill(els.runStatePill, "running", "querying");
+      setPill(els.boundaryPill, "mock-only", "medium");
+      renderSources();
+      renderAgentList();
+      renderReportPlaceholder();
+      renderLabLocked();
+      addLog("Validator", `Accepted IOC ${ioc}. No external API calls will be made in this demo.`);
+
+      demoInvestigation.executionSteps.forEach((step, index) => {
+        schedule(() => {
+          addLog(step.actor, step.text.replace(demoInvestigation.ioc, ioc));
+          const source = demoInvestigation.sources[index - 2];
+          if (source) {
+            state.sourceStatus[source.id] = "querying";
+            renderSources();
+            renderAgentList();
+          }
+          const completedSource = demoInvestigation.sources[index - 3];
+          if (completedSource) {
+            state.sourceStatus[completedSource.id] = completedSource.severity === "low" ? "done" : "flagged";
+            renderSources();
+            renderAgentList();
+          }
+        }, step.delay);
+      });
+
+      schedule(completeInvestigation, 5900);
+    }
+
+    function resetApp() {
+      clearTimers();
+      state.running = false;
+      state.completed = false;
+      state.selectedSourceId = null;
+      state.logIndex = 0;
+      resetSourceStatus();
+      els.iocInput.disabled = false;
+      els.runButton.disabled = false;
+      els.iocInput.value = demoInvestigation.ioc;
+      els.metricIoc.textContent = demoInvestigation.ioc;
+      setPill(els.runStatePill, "ready");
+      setPill(els.boundaryPill, "demo-only");
+      els.logList.innerHTML = '<div class="placeholder">Waiting for an IOC. The simulated orchestrator will show each investigation step here after Run Investigation.</div>';
+      renderSources();
+      renderAgentList();
+      renderReportPlaceholder();
+      renderLabLocked();
+      showView("investigate");
+    }
+
+    els.form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      runInvestigation();
+    });
+    els.resetButton.addEventListener("click", resetApp);
+    document.querySelectorAll("[data-view]").forEach((button) => {
+      button.addEventListener("click", () => showView(button.dataset.view));
+    });
+    els.sourceGrid.addEventListener("click", (event) => {
+      const card = event.target.closest("[data-source-id]");
+      if (!card || !state.completed) return;
+      renderAgentDetail(card.dataset.sourceId);
+      showView("lab");
+    });
+    els.agentList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-agent-id]");
+      if (!button || !state.completed) return;
+      renderAgentDetail(button.dataset.agentId);
+    });
+    els.agentChatForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!state.completed || !state.selectedSourceId) return;
+      const question = els.agentChatInput.value.trim();
+      if (!question) return;
+      addAgentMessage("user", question);
+      addAgentMessage("assistant", `[Simulated source reply] ${answerAgentQuestion(question)}`);
+      els.agentChatInput.value = "";
+    });
+
+    resetApp();
+  </script>
+</body>
+</html>
